@@ -1,10 +1,10 @@
-from django.shortcuts import render
 
 # Create your views here.
 from django.db.models import Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
 
 from accounts.roles import get_role, LIMITED, LIMITED_REGION_IDS
 from .filters import LocusFilter
@@ -16,7 +16,7 @@ from .serializers import LocusSerializer, LocusWithMembersSerializer
 SIDELOAD_MEMBERS = 'locusMembers'
 
 class LocusListView(generics.ListAPIView):
-    permission_classes = [LocusAccessPermission]
+    permission_classes = [LocusAccessPermission, IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_class = LocusFilter
     pagination_class = LocusPagination

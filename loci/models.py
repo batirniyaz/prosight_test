@@ -2,8 +2,6 @@ from django.db import models
 
 # Create your models here.
 
-from django.db import models
-
 class Locus(models.Model):
     id = models.BigIntegerField(primary_key=True)
     assembly_id = models.CharField(max_length=255)
@@ -29,4 +27,4 @@ class LocusMember(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'rnc_locus_member'
+        db_table = 'rnc_locus_members'
