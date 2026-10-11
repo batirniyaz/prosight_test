@@ -24,7 +24,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/token', TokenObtainPairView.as_view(), name='token-obtain-pair'),
     path('auth/token/refresh', TokenRefreshView.as_view(), name='token-refresh'),
-    path('schema', SpectacularAPIView.as_view(), name='schema'),
-    path('docs', SpectacularSwaggerView.as_view(url_name='schema')),
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('docs/', SpectacularSwaggerView.as_view(url_name='schema')),
     path('locus', LocusListView.as_view(), name='locus-list'),
 ]
