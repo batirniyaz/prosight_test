@@ -1,5 +1,8 @@
 from .settings import *  # noqa: F401,F403
 
+# Tests must run without a .env file.
+SECRET_KEY = "test-only-secret-key-not-for-production-use"
+
 # The real RNAcentral DB is read-only, so Django can't create a test database there.
 # Tests use an in-memory SQLite instead; tables are created by the custom runner.
 DATABASES["rnacentral"] = {

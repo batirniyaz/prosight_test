@@ -1,8 +1,12 @@
+from unittest import mock
+
 from django.contrib.auth.models import User
+from django.db import ProgrammingError
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.roles import LIMITED_REGION_IDS
+from .filters import LocusFilter
 from .models import Locus, LocusMember
 
 LOCUS_URL = "/locus"
@@ -95,6 +99,16 @@ class ResponseFormatTests(LocusApiTestBase):
         self.assertEqual(len(first["locusMembers"]), 2)
         self.assertEqual(set(first["locusMembers"][0]), MEMBER_FIELDS)
 
+    def test_unknown_sideloading_value_is_rejected(self):
+        self.assertEqual(self.get_locus(sideloading="foo").status_code, 400)
+
+    def test_database_error_returns_503(self):
+        with mock.patch("loci.views.visible_loci", side_effect=ProgrammingError('relation "rnc_locus" does not exist')), \
+                self.assertLogs("config.exceptions", level="ERROR"):
+            response = self.get_locus()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"detail": "Database is temporarily unavailable."})
+
     def test_sideloading_does_not_cause_n_plus_one(self):
         # count + loci + one prefetch query for all members
         with self.assertNumQueries(3, using="rnacentral"):
@@ -133,6 +147,21 @@ class PermissionTests(LocusApiTestBase):
         self.login("limited")
         self.assertEqual(self.ids(self.get_locus(id="2")), [])
 
+    def test_limited_cannot_find_locus_by_hidden_member_region(self):
+        # locus 1 is visible, but its member in a forbidden region must not be searchable
+        self.login("limited")
+        self.assertEqual(self.ids(self.get_locus(regionId=str(ANOTHER_FORBIDDEN_REGION))), [])
+
+    def test_limited_cannot_find_locus_by_hidden_member_status(self):
+        # the only "highlighted" member of locus 1 is in a forbidden region
+        self.login("limited")
+        self.assertEqual(self.ids(self.get_locus(membershipStatus="highlighted")), [])
+
+    def test_user_without_role_is_forbidden(self):
+        User.objects.create_user("no_role", password="no_role")
+        self.login("no_role")
+        self.assertEqual(self.get_locus().status_code, 403)
+
 
 class FilterTests(LocusApiTestBase):
     def setUp(self):
@@ -156,6 +185,15 @@ class FilterTests(LocusApiTestBase):
         self.assertEqual(self.ids(response), [1])
         self.assertEqual(response.json()["meta"]["total"], 1)
 
+    def test_member_filters_match_the_same_member(self):
+        # locus 1 has a member in ALLOWED_REGION and a "highlighted" member, but they are different members
+        self.assertEqual(self.ids(self.get_locus(regionId=str(ALLOWED_REGION), membershipStatus="highlighted")), [])
+        self.assertEqual(
+            self.ids(self.get_locus(regionId=str(ANOTHER_FORBIDDEN_REGION), membershipStatus="highlighted")), [1])
+
+    def test_invalid_filter_value_is_rejected(self):
+        self.assertEqual(self.get_locus(id="abc").status_code, 400)
+
 
 class SortingTests(LocusApiTestBase):
     def setUp(self):
@@ -169,6 +207,14 @@ class SortingTests(LocusApiTestBase):
 
     def test_sort_by_multiple_fields(self):
         self.assertEqual(self.ids(self.get_locus(sort="assemblyId,-locusStart")), [1, 2, 3])
+
+    def test_ties_are_broken_by_id(self):
+        self.assertEqual(self.ids(self.get_locus(sort="-assemblyId")), [3, 1, 2])
+        qs = LocusFilter({"sort": "-assemblyId"}, queryset=Locus.objects.all()).qs
+        self.assertEqual(qs.query.order_by, ("-assembly_id", "id"))
+
+    def test_unknown_sort_field_is_rejected(self):
+        self.assertEqual(self.get_locus(sort="foo").status_code, 400)
 
 
 class PaginationTests(LocusApiTestBase):
