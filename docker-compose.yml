@@ -1,0 +1,7 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    # Secrets and DB credentials live only in the local .env (git-ignored), see .env.example.
+    env_file: .env

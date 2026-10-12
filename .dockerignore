@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+db.sqlite3
+.env
+.claude
+.junie
+.idea
+Dockerfile
+docker-compose.yml
+.dockerignore
